@@ -5,11 +5,13 @@ import numpy as np
 from PIL import Image
 import time
 
+
 # Load your trained CNN model
 cnn_model = load_model('cnn_model.h5')
 
 # Setting the page configuration with a wide layout and a title
-st.set_page_config(layout="wide")
+st.set_page_config(page_title="Cat and Dog Image Predictor", page_icon=":cat: :dog:", layout="wide")
+
 
 # Adding a wallpaper at the top of the page
 wallpaper_path = 'cats_and_dogs.jpg'
