@@ -5,21 +5,22 @@ import numpy as np
 from PIL import Image
 import time
 
-
 # Load your trained CNN model
 cnn_model = load_model('cnn_model.h5')
 
 # Setting the page configuration with a wide layout and a title
-st.set_page_config(page_title="Cat and Dog Image Predictor", page_icon=":cat: :dog:", layout="wide")
-
+st.set_page_config(page_title="Cat and Dog Image Predictor", page_icon="🐱🐶", layout="wide")
 
 # Adding a wallpaper at the top of the page
 wallpaper_path = 'cats_and_dogs.jpg'
 wallpaper = Image.open(wallpaper_path)
 new_width = wallpaper.width // 2
 new_height = wallpaper.height // 4
-# Use Image.Resampling.LANCZOS for high-quality downsampling
-wallpaper = wallpaper.resize((new_width, new_height), Image.Resampling.LANCZOS)
+# Check Pillow version compatibility
+try:
+    wallpaper = wallpaper.resize((new_width, new_height), Image.Resampling.LANCZOS)
+except AttributeError:
+    wallpaper = wallpaper.resize((new_width, new_height), Image.LANCZOS)
 
 # Create columns with specified width proportions
 left_col, center_col, right_col = st.columns([0.2, 0.6, 0.2])
@@ -77,4 +78,3 @@ with center1_col:
             st.markdown(f"<h1 style='text-align: left; color: white;'>{prediction}</h1>", unsafe_allow_html=True)      
             # Display the uploaded image
             st.image(uploaded_file, width=350)
-
