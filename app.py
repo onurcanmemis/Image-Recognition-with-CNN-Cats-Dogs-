@@ -1,80 +1,175 @@
-import streamlit as st
-from tensorflow.keras.models import load_model
-from keras.preprocessing import image
+"""Pet-breed classifier — FastAPI web app.
+
+Loads three artefacts produced by `model_experiments/train_compare.py`:
+
+  * `cnn_model.keras`       — the winning model (Keras 3 native format)
+  * `class_indices.json`    — index → breed name
+  * `model_info.json`       — winner metadata: preprocessing tag, Grad-CAM
+                              target layer, accuracy, params, etc.
+
+The preprocessing function and Grad-CAM target layer are read from
+`model_info.json` so the same `app.py` works no matter which model won the
+tournament.
+
+Routes
+------
+GET  /         — render templates/index.html (upload form + model card)
+POST /predict  — multipart file upload; returns JSON with top-5 candidates,
+                 base64 PNG of the resized input, and base64 PNG of the
+                 Grad-CAM overlay.
+GET  /health   — liveness probe; returns {"status": "ok"}.
+
+Local dev:
+    uv run uvicorn app:app --reload --port 7860
+"""
+
+from __future__ import annotations
+
+import base64
+import io
+import json
+from pathlib import Path
+
+import cv2
 import numpy as np
-from PIL import Image
-import time
+import tensorflow as tf
+from fastapi import FastAPI, File, HTTPException, Request, UploadFile
+from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from PIL import Image, UnidentifiedImageError
+from tf_keras_vis.gradcam import Gradcam
+from tf_keras_vis.utils.model_modifiers import ReplaceToLinear
+from tf_keras_vis.utils.scores import CategoricalScore
 
-# Load your trained CNN model
-cnn_model = load_model('cnn_model.h5')
+# ── Paths ───────────────────────────────────────────────────────────────
+REPO_ROOT = Path(__file__).parent
+MODEL_PATH = REPO_ROOT / "cnn_model.keras"
+CLASS_INDICES_PATH = REPO_ROOT / "class_indices.json"
+MODEL_INFO_PATH = REPO_ROOT / "model_info.json"
+STATIC_DIR = REPO_ROOT / "static"
+TEMPLATES_DIR = REPO_ROOT / "templates"
 
-# Setting the page configuration with a wide layout and a title
-st.set_page_config(page_title="Cat and Dog Image Predictor", page_icon="🐱🐶", layout="wide")
+INPUT_SIZE = (224, 224)
+TOP_K = 5
 
-# Adding a wallpaper at the top of the page
-wallpaper_path = 'cats_and_dogs.jpg'
-wallpaper = Image.open(wallpaper_path)
-new_width = wallpaper.width // 2
-new_height = wallpaper.height // 4
-# Check Pillow version compatibility
-try:
-    wallpaper = wallpaper.resize((new_width, new_height), Image.Resampling.LANCZOS)
-except AttributeError:
-    wallpaper = wallpaper.resize((new_width, new_height), Image.LANCZOS)
 
-# Create columns with specified width proportions
-left_col, center_col, right_col = st.columns([0.2, 0.6, 0.2])
+# ── Preprocessing dispatch (mirrors train_compare.py — preprocessing tag
+#    round-trip is the contract between training and inference) ──────────
+def preprocess_fn_for(name: str):
+    if name == "rescale_1_over_255":
+        return lambda x: x / 255.0
+    if name == "mobilenet_v2":
+        from keras.applications.mobilenet_v2 import preprocess_input
+        return preprocess_input
+    if name == "efficientnet":
+        from keras.applications.efficientnet import preprocess_input
+        return preprocess_input
+    raise ValueError(f"Unknown preprocessing tag: {name}")
 
-# Use the center column to display the image
-with center_col:
-    st.image(wallpaper)  # Display the resized wallpaper
 
-left1_col, center1_col, right1_col = st.columns([0.2, 0.7, 0.15])
-with center1_col:
-    st.title('Cat and Dog Image Predictor')
-    st.write("""
-    This simple application uses a ***Convolutional Neural Network (CNN)*** to distinguish between images of cats and dogs.
+# ── Load artefacts once at import time ──────────────────────────────────
+def _require(path: Path, hint: str) -> None:
+    if not path.exists():
+        raise RuntimeError(
+            f"{path.name} missing — {hint}. "
+            "Run `uv run python model_experiments/train_compare.py` first."
+        )
 
-    **To use this app:**
 
-    1. Click on the **Browse files** button below to upload an image of a cat or a dog.
-    2. After the image has been uploaded, click the **Guess** button to the right.
-    3. The model will analyze the image and tell you whether it's a cat or a dog.
+_require(MODEL_PATH, "the winning model artefact")
+_require(CLASS_INDICES_PATH, "produced by the tournament script")
+_require(MODEL_INFO_PATH, "produced by the tournament script")
 
-    Please only upload images in JPG, PNG, or JPEG format.
-    """)
+model: tf.keras.Model = tf.keras.models.load_model(MODEL_PATH)
+class_indices: dict[int, str] = {
+    int(k): v for k, v in json.loads(CLASS_INDICES_PATH.read_text()).items()
+}
+model_info: dict = json.loads(MODEL_INFO_PATH.read_text())
+preprocess_fn = preprocess_fn_for(model_info["preprocessing"])
 
-    # Create columns for the uploader and the button
-    col1, space_col, col2 = st.columns([0.8, 0.2, 1]) 
 
-    with col1:
-        uploaded_file = st.file_uploader("Choose an image", type=['jpg', 'png', 'jpeg'])
-    with space_col:
-        st.write("")
-    with col2:
-        # Button to guess the image
-        if st.button('Guess') and uploaded_file is not None:
-            my_bar = st.progress(0)
+# ── Inference helpers ───────────────────────────────────────────────────
+def prepare_image(pil_image: Image.Image) -> tuple[np.ndarray, np.ndarray]:
+    """Return (raw_resized_uint8, preprocessed_batch_1xHxWx3)."""
+    img = pil_image.convert("RGB").resize(INPUT_SIZE, Image.Resampling.LANCZOS)
+    raw = np.asarray(img, dtype=np.uint8)
+    preprocessed = np.asarray(preprocess_fn(np.expand_dims(raw.astype(np.float32), 0)))
+    return raw, preprocessed
 
-            for percent_complete in range(0, 101, 10):
-                time.sleep(0.1)  # simulate a delay
-                my_bar.progress(percent_complete)
-            # Convert the file to an image
-            test_image = image.load_img(uploaded_file, target_size=(64, 64))
-            test_image = image.img_to_array(test_image)
-            test_image = np.expand_dims(test_image, axis=0)
-            
-            # Make prediction
-            result = cnn_model.predict(test_image/255.0)
-            
-            # Interpret the results
-            if result[0][0] > 0.5:
-                prediction = 'DOG'
-            else:
-                prediction = 'CAT'
-            # Ensure the progress bar reaches 100%
-            my_bar.progress(100)
-            # Display the result as a flashy heading
-            st.markdown(f"<h1 style='text-align: left; color: white;'>{prediction}</h1>", unsafe_allow_html=True)      
-            # Display the uploaded image
-            st.image(uploaded_file, width=350)
+
+def gradcam_heatmap(preprocessed: np.ndarray, class_idx: int, target_layer: str) -> np.ndarray:
+    """Return a Grad-CAM heatmap of shape (H, W) normalised to [0, 1]."""
+    gradcam = Gradcam(model, model_modifier=ReplaceToLinear(), clone=True)
+    score = CategoricalScore([class_idx])
+    cam = gradcam(score, preprocessed, penultimate_layer=target_layer)
+    return cam[0]
+
+
+def overlay_heatmap(image_uint8: np.ndarray, heatmap: np.ndarray, alpha: float = 0.6) -> np.ndarray:
+    """Resize the heatmap to the image, apply jet colormap, blend at alpha."""
+    h, w = image_uint8.shape[:2]
+    cam = cv2.resize(heatmap, (w, h))
+    cam = (255 * np.clip(cam, 0.0, 1.0)).astype(np.uint8)
+    colour = cv2.applyColorMap(cam, cv2.COLORMAP_JET)
+    colour = cv2.cvtColor(colour, cv2.COLOR_BGR2RGB)
+    return (image_uint8 * (1 - alpha) + colour * alpha).astype(np.uint8)
+
+
+def _png_b64(image_uint8: np.ndarray) -> str:
+    buf = io.BytesIO()
+    Image.fromarray(image_uint8).save(buf, format="PNG")
+    return base64.b64encode(buf.getvalue()).decode("ascii")
+
+
+# ── FastAPI app ─────────────────────────────────────────────────────────
+app = FastAPI(title="Pet Breed Classifier", version=model_info.get("run_date", "0.0.0"))
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
+
+
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok"}
+
+
+@app.get("/")
+def index(request: Request):
+    return templates.TemplateResponse(
+        request, "index.html", {"model_info": model_info}
+    )
+
+
+@app.post("/predict")
+async def predict(file: UploadFile = File(...)) -> JSONResponse:
+    contents = await file.read()
+    try:
+        pil_image = Image.open(io.BytesIO(contents))
+    except UnidentifiedImageError as exc:
+        raise HTTPException(status_code=400, detail="File is not a valid image.") from exc
+
+    raw, batch = prepare_image(pil_image)
+    probs = model.predict(batch, verbose=0)[0]
+    top_idx = np.argsort(probs)[-TOP_K:][::-1]
+    top_breeds = [class_indices[int(i)] for i in top_idx]
+    top_confs = [float(probs[int(i)]) for i in top_idx]
+    winner_idx = int(top_idx[0])
+
+    gradcam_b64: str | None = None
+    gradcam_failed: str | None = None
+    try:
+        heat = gradcam_heatmap(batch, winner_idx, model_info["gradcam_target_layer"])
+        overlay = overlay_heatmap(raw, heat)
+        gradcam_b64 = _png_b64(overlay)
+    except Exception as exc:  # tf-keras-vis can fail if the layer name doesn't exist
+        gradcam_failed = str(exc)
+
+    return JSONResponse(
+        {
+            "top_breeds": top_breeds,
+            "top_confs": top_confs,
+            "raw_b64": _png_b64(raw),
+            "gradcam_b64": gradcam_b64,
+            "gradcam_failed": gradcam_failed,
+        }
+    )

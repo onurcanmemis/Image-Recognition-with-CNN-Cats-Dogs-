@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pet Breed Classifier 🐾</title>
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <div class="container">
+        <div class="banner">
+            <img src="/static/cats_and_dogs.jpg" alt="Cats and dogs banner" />
+        </div>
+
+        <h1>Pet Breed Classifier 🐾</h1>
+        <p class="lead">
+            Identify one of <strong>{{ model_info.num_classes }} cat &amp; dog breeds</strong>
+            from a single photo. The model returns its top-5 candidates and a
+            Grad-CAM heatmap showing which pixels drove the prediction.
+        </p>
+
+        <form id="upload-form" class="upload">
+            <input
+                id="file-input"
+                type="file"
+                name="file"
+                accept="image/jpeg,image/png,image/jpg"
+                required
+            />
+            <button id="submit-btn" type="submit" class="primary" disabled>Predict</button>
+        </form>
+
+        <div id="status" class="status"></div>
+
+        <div id="results"></div>
+
+        <aside class="model-card">
+            <h4>Model card</h4>
+            <div><b>Architecture:</b> {{ model_info.name }}</div>
+            <div><b>Test accuracy:</b> {{ "%.2f"|format(model_info.test_accuracy * 100) }}%</div>
+            <div><b>Trainable params:</b> {{ "{:,}".format(model_info.params_total) }}</div>
+            <div><b>Model size:</b> {{ "%.1f"|format(model_info.model_size_mb or 0) }} MB</div>
+            <div><b>Avg inference:</b> {{ "%.1f"|format(model_info.avg_inference_time_ms or 0) }} ms</div>
+            <div class="stat" style="margin-top:0.5rem;">
+                Trained on {{ model_info.trained_on }} ({{ model_info.num_classes }} classes) ·
+                run {{ model_info.run_date }}
+            </div>
+        </aside>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
