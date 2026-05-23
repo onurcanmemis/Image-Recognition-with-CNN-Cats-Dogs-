@@ -6,10 +6,24 @@ model_experiments/saved_models/
 model_experiments/results/
 model_experiments/plots/
 
+# Winner artefacts produced by train_compare.py — not committed;
+# regenerate locally or copy from the HF Space.
+cnn_model.keras
+cnn_model.h5
+class_indices.json
+model_info.json
+
 # Python / uv
 .venv/
 __pycache__/
 *.pyc
+
+# Agent-internal guidance, not for the public repo
+CLAUDE.md
+
+# Nested Hugging Face Space clone — deploy via its own remote, never
+# track from inside this repo.
+Dog_Breed_Classifier/
 
 # macOS
 .DS_Store

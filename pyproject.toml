@@ -1,0 +1,25 @@
+[project]
+name = "pet-breed-classifier"
+version = "0.4.0"
+description = "Oxford-IIIT Pet breed classifier — 6-model tournament, Grad-CAM FastAPI app"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # Web app
+    "fastapi",
+    "uvicorn[standard]",
+    "python-multipart", # multipart/form-data file uploads
+    "jinja2",           # HTML template engine
+    # ML
+    "tensorflow==2.18.0",
+    # M1 GPU acceleration via Apple Metal — installed only on Apple Silicon Macs.
+    "tensorflow-metal; platform_system=='Darwin' and platform_machine=='arm64'",
+    "tf-keras-vis",     # Grad-CAM
+    # Training pipeline
+    "scikit-learn",     # precision / recall / F1
+    "tqdm",             # progress bars
+    "matplotlib",       # learning-curve plots
+    # Image handling
+    "opencv-python",    # heatmap blending (local dev); HF Space uses opencv-python-headless
+    "pillow>=10.4",
+    "requests",         # dataset download
+]
