@@ -3,49 +3,79 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pet Breed Classifier 🐾</title>
+    <title>Pet Breed Classifier</title>
     <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
     <div class="container">
-        <div class="banner">
-            <img src="/static/cats_and_dogs.jpg" alt="Cats and dogs banner" />
-        </div>
+        <header class="app-header">
+            <div class="app-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="6.5" cy="8" r="1.8" fill="currentColor"/>
+                    <circle cx="10.5" cy="5.2" r="1.8" fill="currentColor"/>
+                    <circle cx="13.5" cy="5.2" r="1.8" fill="currentColor"/>
+                    <circle cx="17.5" cy="8" r="1.8" fill="currentColor"/>
+                    <path d="M12 11c-3 0-5.5 2.4-5.5 5.2 0 1.7 1.3 2.8 3 2.8 1.1 0 1.7-.5 2.5-.5s1.4.5 2.5.5c1.7 0 3-1.1 3-2.8C17.5 13.4 15 11 12 11Z" fill="currentColor"/>
+                </svg>
+            </div>
+            <div class="app-titles">
+                <h1>Pet Breed Classifier</h1>
+                <p class="tagline">{{ model_info.num_classes }} cat &amp; dog breeds &middot; Top-5 predictions &middot; Grad-CAM explainability</p>
+            </div>
+        </header>
 
-        <h1>Pet Breed Classifier 🐾</h1>
-        <p class="lead">
-            Identify one of <strong>{{ model_info.num_classes }} cat &amp; dog breeds</strong>
-            from a single photo. The model returns its top-5 candidates and a
-            Grad-CAM heatmap showing which pixels drove the prediction.
-        </p>
-
-        <form id="upload-form" class="upload">
-            <input
-                id="file-input"
-                type="file"
-                name="file"
-                accept="image/jpeg,image/png,image/jpg"
-                required
-            />
-            <button id="submit-btn" type="submit" class="primary" disabled>Predict</button>
+        <form id="upload-form" class="dropzone-form">
+            <label id="dropzone" for="file-input" class="dropzone">
+                <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M17 18a4 4 0 0 0 .9-7.9 6 6 0 0 0-11.8.4A4.5 4.5 0 0 0 7 18"/>
+                    <polyline points="9 13 12 10 15 13"/>
+                    <line x1="12" y1="10" x2="12" y2="20"/>
+                </svg>
+                <p class="dropzone-prompt">Drop a photo here or click to browse</p>
+                <p class="dropzone-hint">JPG, PNG, WEBP &middot; max 10 MB</p>
+                <p id="filename" class="dropzone-filename"></p>
+                <input
+                    id="file-input"
+                    type="file"
+                    name="file"
+                    accept="image/jpeg,image/png,image/jpg,image/webp"
+                    hidden
+                    required
+                />
+            </label>
+            <button id="submit-btn" type="submit" class="primary" disabled>Predict breed</button>
         </form>
 
         <div id="status" class="status"></div>
 
         <div id="results"></div>
 
-        <aside class="model-card">
-            <h4>Model card</h4>
-            <div><b>Architecture:</b> {{ model_info.name }}</div>
-            <div><b>Test accuracy:</b> {{ "%.2f"|format(model_info.test_accuracy * 100) }}%</div>
-            <div><b>Trainable params:</b> {{ "{:,}".format(model_info.params_total) }}</div>
-            <div><b>Model size:</b> {{ "%.1f"|format(model_info.model_size_mb or 0) }} MB</div>
-            <div><b>Avg inference:</b> {{ "%.1f"|format(model_info.avg_inference_time_ms or 0) }} ms</div>
-            <div class="stat" style="margin-top:0.5rem;">
-                Trained on {{ model_info.trained_on }} ({{ model_info.num_classes }} classes) ·
-                run {{ model_info.run_date }}
+        <section class="model-strip">
+            <div class="cell">
+                <div class="cell-label">ARCHITECTURE</div>
+                <div class="cell-value">{{ model_info.name }}</div>
             </div>
-        </aside>
+            <div class="cell">
+                <div class="cell-label">TEST ACCURACY</div>
+                <div class="cell-value">{{ "%.2f"|format(model_info.test_accuracy * 100) }}%</div>
+            </div>
+            <div class="cell">
+                <div class="cell-label">TRAINABLE PARAMS</div>
+                <div class="cell-value">{{ "{:,}".format(model_info.params_total) }}</div>
+            </div>
+            <div class="cell">
+                <div class="cell-label">MODEL SIZE</div>
+                <div class="cell-value">{{ "%.1f"|format(model_info.model_size_mb or 0) }} MB</div>
+            </div>
+            <div class="cell">
+                <div class="cell-label">AVG INFERENCE</div>
+                <div class="cell-value">{{ "%.1f"|format(model_info.avg_inference_time_ms or 0) }} ms</div>
+            </div>
+        </section>
+        <p class="model-strip-footer">
+            Trained on {{ model_info.trained_on }} ({{ model_info.num_classes }} classes) &middot;
+            run {{ model_info.run_date }}
+        </p>
     </div>
 
     <script src="/static/app.js"></script>
