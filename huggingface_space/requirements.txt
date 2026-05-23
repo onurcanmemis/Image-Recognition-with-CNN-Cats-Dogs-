@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+python-multipart
+jinja2
+tensorflow==2.18.0
+tf-keras-vis
+pillow>=10.4
+opencv-python-headless
