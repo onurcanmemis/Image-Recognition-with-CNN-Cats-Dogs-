@@ -1,5 +1,7 @@
 # Pet Breed Classifier — A Six-Model Tournament on Oxford-IIIT Pet
 
+[![Hugging Face Spaces](https://img.shields.io/badge/Hugging%20Face-Spaces-yellow)](https://huggingface.co/spaces/onurcanmemis/Dog_Breed_Classifier)
+
 A small, end-to-end study in fine-grained visual classification: take a 37-class
 pet-breed problem, run six architectures against it under identical training
 constraints, and ship the winner behind an explainable FastAPI web app
