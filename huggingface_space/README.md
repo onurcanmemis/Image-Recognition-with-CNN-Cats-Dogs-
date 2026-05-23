@@ -20,7 +20,7 @@ The model is the winner of a six-architecture tournament (baseline CNN,
 deeper CNN, MobileNetV2 frozen/fine-tuned, EfficientNetB0 frozen/fine-tuned).
 Tournament code, methodology, and results live in the source repo:
 
-➡️ **GitHub:** _set this to your repo URL_
+➡️ **GitHub:** https://huggingface.co/spaces/onurcanmemis/Dog_Breed_Classifier
 
 ## Use
 
