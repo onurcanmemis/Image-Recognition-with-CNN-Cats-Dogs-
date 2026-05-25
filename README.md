@@ -209,16 +209,33 @@ separately in the row below the table.
 Source of truth: `model_experiments/results/results_2026-05-25.json`
 (seed 42, run date 2026-05-25).
 
-### 5.2 Learning curves
+### 5.2 Learning curves — winner (efficientnetb0_frozen)
 
-![Validation accuracy across epochs](model_experiments/plots/val_accuracy_curves.png)
+![efficientnetb0_frozen learning curves](model_experiments/plots/learning_curves_2026-05-25/efficientnetb0_frozen.png)
 
-Combined val-accuracy plot above is produced by
-`uv run python model_experiments/plot_results.py`, which reads the most
-recent `results_<date>.json` and skips models that lack a
-`training_history` field. Per-model curves (train + val accuracy and
-loss on the same axes) live under
-`model_experiments/plots/learning_curves_<date>/<model>.png`.
+The winning architecture trained for 11 epochs before early stopping
+restored the best weights. Two things to read off the chart:
+
+- **Pretrained features carry the run.** Val accuracy starts at ~89 %
+  at epoch 1 — before the head has seen its second batch — because the
+  ImageNet-trained EfficientNetB0 backbone already encodes most of the
+  breed-discriminative visual features. The new 37-way head only has to
+  learn the readout, which it does within ~3 epochs.
+- **Overfitting begins around epoch 4.** Train accuracy keeps climbing
+  toward 0.97 and train loss keeps falling to ~0.08, while val accuracy
+  plateaus near 0.93 and val loss drifts up from 0.23 to 0.26. The
+  frozen backbone caps how badly the model can overfit, but the head
+  still memorises some of the training set after the val signal stops
+  improving. Early stopping (`patience=5` on `val_loss`,
+  `restore_best_weights=True`) is what cuts the run off and rolls back
+  to the better-generalising weights from epoch 4 — those are the
+  weights `cnn_model.keras` deploys.
+
+Per-model curves for every architecture in the tournament are written to
+`model_experiments/plots/learning_curves_<date>/<model>.png`; the
+combined val-accuracy comparison across all five models is regenerated
+at `model_experiments/plots/val_accuracy_curves.png` on every
+tournament run.
 
 ### 5.3 Speed vs accuracy
 
