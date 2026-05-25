@@ -196,26 +196,18 @@ separately in the row below the table.
 
 | Model | Val acc | Val F1 (macro) | Params | Size (MB) | Inference (ms, median) |
 |---|---|---|---|---|---|
-| deeper_cnn | 9.74% | 0.082 | 22,254,629 | 424.6 | 32.3 |
-| mobilenet_frozen | 90.39% | 0.901 | 337,445 | 15.6 | 49.8 |
-| mobilenet_finetune | failed¹ | — | — | — | — |
-| **efficientnetb0_frozen** | **92.96%** | **0.924** | **337,445** | **22.7** | **107.2** |
-| efficientnetb0_finetune | failed¹ | — | — | — | — |
-
-¹ Both fine-tune variants raised `Could not locate <backbone> base inside
-the trained frozen model` during this run — the frozen builders had
-dissolved their backbone via `Model(base.input, output, ...)`, leaving
-no sub-model for the fine-tune locator to grab. Fixed in source by
-calling the backbone as a sub-model (`base(inputs, training=False)`);
-the table refreshes on the next tournament run. Frozen baselines are
-unaffected.
+| deeper_cnn | 9.61% | 0.031 | 22,254,629 | 424.6 | 33.5 |
+| mobilenet_frozen | 90.80% | 0.903 | 337,445 | 15.6 | 50.3 |
+| mobilenet_finetune | 91.34% | 0.910 | 1,940,325 | 40.1 | 52.2 |
+| **efficientnetb0_frozen** | **93.78%** | **0.925** | **337,445** | **22.7** | **109.1** |
+| efficientnetb0_finetune | 92.83% | 0.928 | 2,624,949 | 57.6 | 108.7 |
 
 | Winner | Test acc | Test F1 (macro) |
 |---|---|---|
-| efficientnetb0_frozen | 90.41% | 0.903 |
+| efficientnetb0_frozen | 90.22% | 0.900 |
 
-Source of truth: `model_experiments/results/results_2026-05-23.json`
-(seed 42, run date 2026-05-23).
+Source of truth: `model_experiments/results/results_2026-05-25.json`
+(seed 42, run date 2026-05-25).
 
 ### 5.2 Learning curves
 
