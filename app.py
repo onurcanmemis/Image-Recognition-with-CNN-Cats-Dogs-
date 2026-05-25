@@ -81,7 +81,36 @@ _require(MODEL_PATH, "the winning model artefact")
 _require(CLASS_INDICES_PATH, "produced by the tournament script")
 _require(MODEL_INFO_PATH, "produced by the tournament script")
 
-model: tf.keras.Model = tf.keras.models.load_model(MODEL_PATH)
+
+def _flatten_nested_backbone(loaded: tf.keras.Model) -> tf.keras.Model:
+    """Inline a single nested sub-model so all backbone layers are top-level.
+
+    Transfer-learning frozen builders wrap the backbone as a named sub-model
+    (so the fine-tune step can find it via `get_layer(NAME)`). At inference
+    that wrapping hides intermediate conv layers (e.g. `top_activation`)
+    from tf-keras-vis, which then raises "Output with path `1` is not
+    connected to `inputs`". Re-trace the existing graph using the
+    backbone's `.input`/`.output` tensors plus the head layer instances
+    (weights are shared, so this is a view, not a re-train).
+    """
+    backbone = next(
+        (l for l in loaded.layers if isinstance(l, tf.keras.Model)), None
+    )
+    if backbone is None:
+        return loaded
+    head_layers = [
+        l for l in loaded.layers
+        if not isinstance(l, (tf.keras.layers.InputLayer, tf.keras.Model))
+    ]
+    x = backbone.output
+    for layer in head_layers:
+        x = layer(x)
+    return tf.keras.Model(backbone.input, x, name=loaded.name)
+
+
+model: tf.keras.Model = _flatten_nested_backbone(
+    tf.keras.models.load_model(MODEL_PATH)
+)
 class_indices: dict[int, str] = {
     int(k): v for k, v in json.loads(CLASS_INDICES_PATH.read_text()).items()
 }
