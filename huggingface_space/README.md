@@ -16,11 +16,11 @@ short_description: 37-class cat & dog breed classifier with Grad-CAM
 Identifies one of 37 cat & dog breeds (Oxford-IIIT Pet) and shows a Grad-CAM
 heatmap of the pixels that drove the prediction.
 
-The model is the winner of a six-architecture tournament (baseline CNN,
-deeper CNN, MobileNetV2 frozen/fine-tuned, EfficientNetB0 frozen/fine-tuned).
+The model is the winner of a five-architecture tournament (deeper CNN,
+MobileNetV2 frozen/fine-tuned, EfficientNetB0 frozen/fine-tuned).
 Tournament code, methodology, and results live in the source repo:
 
-➡️ **GitHub:** https://huggingface.co/spaces/onurcanmemis/Dog_Breed_Classifier
+➡️ **GitHub:** https://github.com/onurcanmemis/Dog-Breed-Classifier-FastAPI-Tensor-
 
 ## Use
 
