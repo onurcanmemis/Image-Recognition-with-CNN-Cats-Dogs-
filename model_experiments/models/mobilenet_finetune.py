@@ -1,6 +1,6 @@
-"""Model 4 — MobileNetV2 fine-tuned.
+"""Model 3 — MobileNetV2 fine-tuned.
 
-Continues from the trained Model 3 (frozen base + trained head). The top 20 %
+Continues from the trained Model 2 (frozen base + trained head). The top 20 %
 of the MobileNetV2 base is unfrozen, BatchNorm layers stay frozen (changing
 their running stats during fine-tuning is a classic foot-gun), and the model
 is recompiled at lr=1e-5 — CRITICAL: any higher and the pretrained weights
@@ -21,12 +21,8 @@ FINETUNE_LR = 1e-5
 
 
 def _mobilenet_base(model: tf.keras.Model) -> tf.keras.Model:
-    """Pull the MobileNetV2 base out of a head-only-trained model."""
-    for layer in model.layers:
-        if layer.name == "mobilenetv2_1.00_224" or layer.name.startswith("mobilenetv2"):
-            return layer
-    # Fallback: the base is whatever is *not* one of the head layers.
-    raise ValueError("Could not locate MobileNetV2 base inside the trained frozen model")
+    """Pull the MobileNetV2 sub-model out of the trained frozen model."""
+    return model.get_layer("mobilenetv2_1.00_224")
 
 
 def build(trained_frozen_model: tf.keras.Model) -> tf.keras.Model:

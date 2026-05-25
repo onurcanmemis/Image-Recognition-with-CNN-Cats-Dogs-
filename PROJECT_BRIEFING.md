@@ -62,8 +62,7 @@ model_experiments/
 ├── train_compare.py           # single entry point — run this
 ├── models/
 │   ├── __init__.py            # empty, marks as Python package
-│   ├── baseline_cnn.py        # returns compiled Keras model
-│   ├── deeper_cnn.py
+│   ├── deeper_cnn.py          # returns compiled Keras model
 │   ├── mobilenet_frozen.py
 │   ├── mobilenet_finetune.py
 │   ├── efficientnetb0_frozen.py
@@ -71,7 +70,6 @@ model_experiments/
 ├── results/
 │   └── results_YYYY-MM-DD.json   # auto-named by run date
 ├── saved_models/
-│   ├── baseline_cnn.h5
 │   ├── deeper_cnn.h5
 │   ├── mobilenet_frozen.h5
 │   ├── mobilenet_finetune.h5
@@ -80,40 +78,24 @@ model_experiments/
 │   └── best_model.h5             # winner copied here AND to ../cnn_model.h5
 └── plots/
     └── learning_curves_YYYY-MM-DD/
-        ├── baseline_cnn.png
         ├── deeper_cnn.png
         └── ... (one plot per model)
 ```
 
-### Model Lineup (6 models — ResNet50 was explicitly dropped)
+### Model Lineup (5 models — ResNet50 was explicitly dropped; baseline_cnn was dropped post-tournament as non-discriminative)
 **Note on ResNet50:** It was considered but dropped due to ~100MB model size with no meaningful accuracy advantage over EfficientNetB0. It MUST be mentioned in the README under Future Work or Methodology with this reasoning.
 
 | # | Model | Type | Preprocessing | Epochs |
 |---|---|---|---|---|
-| 1 | Baseline CNN | Custom from scratch | `/255.0` | 25 |
-| 2 | Deeper CNN | Custom from scratch | `/255.0` | 25 |
-| 3 | MobileNetV2 (frozen) | Pretrained, head only | `mobilenet_v2.preprocess_input` | 15 |
-| 4 | MobileNetV2 (fine-tuned) | Pretrained, top 20% unfrozen | `mobilenet_v2.preprocess_input` | 10 |
-| 5 | EfficientNetB0 (frozen) | Pretrained, head only | `efficientnet.preprocess_input` | 15 |
-| 6 | EfficientNetB0 (fine-tuned) | Pretrained, top 20% unfrozen | `efficientnet.preprocess_input` | 10 |
+| 1 | Deeper CNN | Custom from scratch | `/255.0` | 25 |
+| 2 | MobileNetV2 (frozen) | Pretrained, head only | `mobilenet_v2.preprocess_input` | 15 |
+| 3 | MobileNetV2 (fine-tuned) | Pretrained, top 20% unfrozen | `mobilenet_v2.preprocess_input` | 10 |
+| 4 | EfficientNetB0 (frozen) | Pretrained, head only | `efficientnet.preprocess_input` | 15 |
+| 5 | EfficientNetB0 (fine-tuned) | Pretrained, top 20% unfrozen | `efficientnet.preprocess_input` | 10 |
 
 ### Model Architectures
 
-**Model 1 — Baseline CNN:**
-```python
-Sequential([
-    Conv2D(32, (3,3), activation='relu', input_shape=(224,224,3)),
-    MaxPooling2D(2,2),
-    Conv2D(64, (3,3), activation='relu'),
-    MaxPooling2D(2,2),
-    Flatten(),
-    Dense(128, activation='relu'),
-    Dense(37, activation='softmax', dtype='float32')  # float32 explicit for mixed precision
-])
-# Compiled: adam (lr=1e-3), categorical_crossentropy, metrics=['accuracy']
-```
-
-**Model 2 — Deeper CNN:**
+**Model 1 — Deeper CNN:**
 ```python
 Sequential([
     Conv2D(32, (3,3), activation='relu', input_shape=(224,224,3)),
@@ -133,7 +115,7 @@ Sequential([
 # Compiled: adam (lr=1e-3), categorical_crossentropy, metrics=['accuracy']
 ```
 
-**Model 3 — MobileNetV2 (frozen):**
+**Model 2 — MobileNetV2 (frozen):**
 ```python
 base = MobileNetV2(weights='imagenet', include_top=False, input_shape=(224,224,3))
 base.trainable = False
@@ -145,13 +127,13 @@ model = Model(base.input, output)
 # Compiled: adam (lr=1e-3), categorical_crossentropy, metrics=['accuracy']
 ```
 
-**Model 4 — MobileNetV2 (fine-tuned):**
-- Start from Model 3's trained weights (train frozen first, then unfreeze)
+**Model 3 — MobileNetV2 (fine-tuned):**
+- Start from Model 2's trained weights (train frozen first, then unfreeze)
 - Unfreeze top 20% of MobileNetV2 layers (MobileNetV2 has 155 layers → unfreeze last ~31)
 - Recompile with lr=1e-5 (CRITICAL — must be much lower than head training lr)
 - Train for 10 more epochs with early stopping
 
-**Model 5 — EfficientNetB0 (frozen):**
+**Model 4 — EfficientNetB0 (frozen):**
 ```python
 base = EfficientNetB0(weights='imagenet', include_top=False, input_shape=(224,224,3))
 base.trainable = False
@@ -163,8 +145,8 @@ model = Model(base.input, output)
 # Compiled: adam (lr=1e-3), categorical_crossentropy, metrics=['accuracy']
 ```
 
-**Model 6 — EfficientNetB0 (fine-tuned):**
-- Start from Model 5's trained weights
+**Model 5 — EfficientNetB0 (fine-tuned):**
+- Start from Model 4's trained weights
 - Unfreeze top 20% of EfficientNetB0 layers (237 layers → unfreeze last ~47)
 - Recompile with lr=1e-5
 - Train for 10 more epochs with early stopping
@@ -185,7 +167,7 @@ model = Model(base.input, output)
 - `test_set/` is NEVER touched during training — used exactly once at the very end for final evaluation
 
 ### Early Stopping
-- **Patience: 5** — same value across ALL 6 models, no exceptions
+- **Patience: 5** — same value across ALL 5 models, no exceptions
 - Monitor: `val_loss`
 - `restore_best_weights=True` — always restore to best checkpoint, not last epoch
 
@@ -303,7 +285,7 @@ val_dataset = tf.data.Dataset.from_generator(...).cache().batch(32).prefetch(tf.
   },
   "models": [
     {
-      "name": "baseline_cnn",
+      "name": "deeper_cnn",
       "params_total": 0,
       "epochs_trained": 0,
       "best_epoch": 0,
@@ -319,7 +301,7 @@ val_dataset = tf.data.Dataset.from_generator(...).cache().batch(32).prefetch(tf.
       "avg_inference_time_ms": 0.0,
       "model_size_mb": 0.0,
       "early_stopped": true,
-      "saved_to": "saved_models/baseline_cnn.h5",
+      "saved_to": "saved_models/deeper_cnn.h5",
       "training_history": {
         "train_accuracy": [],
         "val_accuracy": [],
@@ -333,7 +315,7 @@ val_dataset = tf.data.Dataset.from_generator(...).cache().batch(32).prefetch(tf.
   "winner_test_accuracy": 0.0,
   "speed_accuracy_tradeoff": [
     {
-      "model": "baseline_cnn",
+      "model": "deeper_cnn",
       "test_accuracy": 0.0,
       "avg_inference_time_ms": 0.0
     }
@@ -424,7 +406,7 @@ for model_config in model_configs:
 ### Grad-CAM Implementation
 - Use `tf-keras-vis` library — confirmed, do NOT implement manually
 - Target layer differs per model architecture:
-  - Baseline CNN / Deeper CNN → last `Conv2D` layer name
+  - Deeper CNN → last `Conv2D` layer name
   - MobileNetV2 → `out_relu`
   - EfficientNetB0 → `top_activation`
 - Store a config dictionary in app.py mapping model name → target layer name
@@ -462,11 +444,11 @@ Order confirmed as:
 - "Fine-tuning the top 20% of EfficientNetB0 will yield the highest overall accuracy, but the marginal gain over the frozen variant may be modest — pretrained ImageNet features already encode strong general visual representations."
 - "There will be a meaningful speed vs accuracy tradeoff: custom CNNs will have faster inference times but lower accuracy; EfficientNetB0 fine-tuned will have the highest accuracy but slowest inference."
 
-**Methodology:** Dataset, all 6 models with reasoning, training setup (all hyperparameters), the three optimizations, validation strategy, evaluation metrics.
+**Methodology:** Dataset, all 5 models with reasoning, training setup (all hyperparameters), the three optimizations, validation strategy, evaluation metrics.
 
 **Note on ResNet50:** Must be mentioned here — it was considered, dropped because at ~100MB with no meaningful accuracy advantage over EfficientNetB0 (~20MB), it was not cost-effective. This shows pragmatic engineering judgment.
 
-**Results:** Metrics table for all 6 models, learning curve plots, speed vs accuracy Pareto plot.
+**Results:** Metrics table for all 5 models, learning curve plots, speed vs accuracy Pareto plot.
 
 **Conclusions:** What the data showed, was hypothesis confirmed, which model won and why.
 
@@ -547,7 +529,7 @@ dependencies = [
 
 1. Add dependencies to `pyproject.toml`, run `uv sync`
 2. Download Oxford-IIIT Pet dataset, set up folder structure
-3. Build `model_experiments/models/` — all 6 model definition files + `__init__.py`
+3. Build `model_experiments/models/` — all 5 model definition files + `__init__.py`
 4. Build `train_compare.py` — full tournament script with all logging, optimizations, JSON output
 5. Run the tournament, verify JSON output is correct
 6. Build upgraded `app.py` — modern UI, Grad-CAM, confidence bar chart, model card

@@ -1,4 +1,4 @@
-"""Six-model tournament on Oxford-IIIT Pet.
+"""Five-model tournament on Oxford-IIIT Pet.
 
 Single entry point. Trains each model, evaluates it on the validation set
 (per-class P/R/F1 + macros), and writes incremental results JSON. Winner is
@@ -78,13 +78,13 @@ from sklearn.metrics import precision_recall_fscore_support  # noqa: E402
 from tqdm.auto import tqdm  # noqa: E402
 
 from model_experiments.models import (  # noqa: E402
-    baseline_cnn,
     deeper_cnn,
     efficientnetb0_finetune,
     efficientnetb0_frozen,
     mobilenet_finetune,
     mobilenet_frozen,
 )
+from model_experiments import plot_results  # noqa: E402
 
 # ── 4. Constants ────────────────────────────────────────────────────────
 IMAGE_SIZE = (224, 224)
@@ -309,7 +309,7 @@ def plot_speed_accuracy(results: dict, path: Path) -> None:
 
     Y-axis is val_accuracy (not test) because the test set is touched only
     once, on the tournament winner — only val_accuracy is comparable across
-    all 6 models.
+    all 5 models.
     """
     points = [
         (m["avg_inference_time_ms"], m["val_accuracy"], m["name"])
@@ -572,7 +572,6 @@ def main() -> int:
     results_path.write_text(json.dumps(results, indent=2))
 
     model_configs = [
-        {"module": baseline_cnn, "epochs": 25, "depends_on": None},
         {"module": deeper_cnn, "epochs": 25, "depends_on": None},
         {"module": mobilenet_frozen, "epochs": 15, "depends_on": None},
         {"module": mobilenet_finetune, "epochs": 10, "depends_on": "mobilenet_frozen"},
@@ -691,7 +690,13 @@ def main() -> int:
         logger.error("No model completed successfully — winner not selected.")
 
     results_path.write_text(json.dumps(results, indent=2))
-    plot_speed_accuracy(results, OUT_ROOT / "plots" / f"speed_vs_accuracy_{today}.png")
+    plot_speed_accuracy(results, OUT_ROOT / "plots" / "speed_vs_accuracy.png")
+    try:
+        plot_results.main()
+    except SystemExit as e:
+        # Raised if no model has a training_history (every model failed).
+        # Don't bury the tournament's own failure log under a second crash.
+        logger.warning(f"Skipping val-accuracy plot: {e}")
     logger.info(f"Done. Results: {results_path}")
     return 0
 

@@ -1,4 +1,4 @@
-"""Model 5 — EfficientNetB0 with the convolutional base frozen."""
+"""Model 4 — EfficientNetB0 with the convolutional base frozen."""
 
 from __future__ import annotations
 
@@ -16,12 +16,16 @@ def build(num_classes: int = 37) -> tf.keras.Model:
     base = EfficientNetB0(weights="imagenet", include_top=False, input_shape=INPUT_SHAPE)
     base.trainable = False
 
-    x = layers.GlobalAveragePooling2D()(base.output)
+    inputs = tf.keras.Input(shape=INPUT_SHAPE)
+    # Call the base as a sub-model so it stays a single named layer in the outer
+    # Model — the fine-tune builder relies on get_layer("efficientnetb0").
+    x = base(inputs, training=False)
+    x = layers.GlobalAveragePooling2D()(x)
     x = layers.Dense(256, activation="relu")(x)
     x = layers.Dropout(0.3)(x)
     output = layers.Dense(num_classes, activation="softmax", dtype="float32")(x)
 
-    model = Model(base.input, output, name=NAME)
+    model = Model(inputs, output, name=NAME)
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
         loss="categorical_crossentropy",

@@ -1,7 +1,7 @@
-"""Model 6 — EfficientNetB0 fine-tuned.
+"""Model 5 — EfficientNetB0 fine-tuned.
 
 Same recipe as `mobilenet_finetune.py` but for EfficientNetB0: continue from
-the trained Model 5, unfreeze the top 20 % of base layers, keep BatchNorm
+the trained Model 4, unfreeze the top 20 % of base layers, keep BatchNorm
 frozen, recompile at lr=1e-5.
 """
 
@@ -19,10 +19,8 @@ FINETUNE_LR = 1e-5
 
 
 def _efficientnet_base(model: tf.keras.Model) -> tf.keras.Model:
-    for layer in model.layers:
-        if layer.name.startswith("efficientnet"):
-            return layer
-    raise ValueError("Could not locate EfficientNetB0 base inside the trained frozen model")
+    """Pull the EfficientNetB0 sub-model out of the trained frozen model."""
+    return model.get_layer("efficientnetb0")
 
 
 def build(trained_frozen_model: tf.keras.Model) -> tf.keras.Model:

@@ -18,7 +18,7 @@ constraints, and ship the winner behind an explainable FastAPI web app
 ```bash
 uv sync                                            # install deps (incl. tensorflow-metal on Apple Silicon)
 uv run python download_dataset.py                  # fetch & organise Oxford-IIIT Pet (~800 MB)
-uv run python model_experiments/train_compare.py   # full 6-model tournament
+uv run python model_experiments/train_compare.py   # full 5-model tournament
 uv run uvicorn app:app --reload --port 7860        # serve the winner; open http://localhost:7860
 ```
 
@@ -106,12 +106,11 @@ populous classes. Macro F1 weights every breed equally regardless of size.
 
 | # | Model | Type | Preprocessing | Max epochs |
 |---|---|---|---|---|
-| 1 | Baseline CNN | From scratch | `image / 255` | 25 |
-| 2 | Deeper CNN | From scratch (BN + dropout) | `image / 255` | 25 |
-| 3 | MobileNetV2 (frozen) | Pretrained, head only | `mobilenet_v2.preprocess_input` | 15 |
-| 4 | MobileNetV2 (fine-tuned) | Pretrained, top 20 % unfrozen | `mobilenet_v2.preprocess_input` | 10 |
-| 5 | EfficientNetB0 (frozen) | Pretrained, head only | `efficientnet.preprocess_input` | 15 |
-| 6 | EfficientNetB0 (fine-tuned) | Pretrained, top 20 % unfrozen | `efficientnet.preprocess_input` | 10 |
+| 1 | Deeper CNN | From scratch (BN + dropout) | `image / 255` | 25 |
+| 2 | MobileNetV2 (frozen) | Pretrained, head only | `mobilenet_v2.preprocess_input` | 15 |
+| 3 | MobileNetV2 (fine-tuned) | Pretrained, top 20 % unfrozen | `mobilenet_v2.preprocess_input` | 10 |
+| 4 | EfficientNetB0 (frozen) | Pretrained, head only | `efficientnet.preprocess_input` | 15 |
+| 5 | EfficientNetB0 (fine-tuned) | Pretrained, top 20 % unfrozen | `efficientnet.preprocess_input` | 10 |
 
 Each model has its own factory file under `model_experiments/models/`; the
 tournament runner imports them by module and treats them uniformly.
@@ -133,7 +132,7 @@ exhaustive benchmarking.
   fine-tuning. The drop is critical: at any meaningfully higher fine-tune LR
   the pretrained weights are destroyed in the first epoch.
 - **Early stopping**: patience 5, monitor `val_loss`, `restore_best_weights=True`,
-  applied uniformly across all six models — no per-model hand-tuning.
+  applied uniformly across all five models — no per-model hand-tuning.
 - **Validation split**: stratified 80 / 20 from `trainval/`, seeded for
   reproducibility. The test set is never touched until the final evaluation.
 - **Random seed**: 42 (`random`, `numpy`, `tensorflow`, `PYTHONHASHSEED`).
@@ -197,30 +196,46 @@ separately in the row below the table.
 
 | Model | Val acc | Val F1 (macro) | Params | Size (MB) | Inference (ms, median) |
 |---|---|---|---|---|---|
-| baseline_cnn | — | — | — | — | — |
-| deeper_cnn | — | — | — | — | — |
-| mobilenet_frozen | — | — | — | — | — |
-| mobilenet_finetune | — | — | — | — | — |
-| efficientnetb0_frozen | — | — | — | — | — |
-| efficientnetb0_finetune | — | — | — | — | — |
+| deeper_cnn | 9.74% | 0.082 | 22,254,629 | 424.6 | 32.3 |
+| mobilenet_frozen | 90.39% | 0.901 | 337,445 | 15.6 | 49.8 |
+| mobilenet_finetune | failed¹ | — | — | — | — |
+| **efficientnetb0_frozen** | **92.96%** | **0.924** | **337,445** | **22.7** | **107.2** |
+| efficientnetb0_finetune | failed¹ | — | — | — | — |
+
+¹ Both fine-tune variants raised `Could not locate <backbone> base inside
+the trained frozen model` during this run — the frozen builders had
+dissolved their backbone via `Model(base.input, output, ...)`, leaving
+no sub-model for the fine-tune locator to grab. Fixed in source by
+calling the backbone as a sub-model (`base(inputs, training=False)`);
+the table refreshes on the next tournament run. Frozen baselines are
+unaffected.
 
 | Winner | Test acc | Test F1 (macro) |
 |---|---|---|
-| — | — | — |
+| efficientnetb0_frozen | 90.41% | 0.903 |
+
+Source of truth: `model_experiments/results/results_2026-05-23.json`
+(seed 42, run date 2026-05-23).
 
 ### 5.2 Learning curves
 
-One PNG per model under
+![Validation accuracy across epochs](model_experiments/plots/val_accuracy_curves.png)
+
+Combined val-accuracy plot above is produced by
+`uv run python model_experiments/plot_results.py`, which reads the most
+recent `results_<date>.json` and skips models that lack a
+`training_history` field. Per-model curves (train + val accuracy and
+loss on the same axes) live under
 `model_experiments/plots/learning_curves_<date>/<model>.png`.
 
 ### 5.3 Speed vs accuracy
 
-Saved to `model_experiments/plots/speed_vs_accuracy_<date>.png` — a scatter
+Saved to `model_experiments/plots/speed_vs_accuracy.png` — a scatter
 plot of median per-image inference latency (x, measured over 500 single-image
 predictions after a GPU warm-up) against **validation accuracy** (y), one
 point per model. Validation accuracy rather than test accuracy because only
 the winner is evaluated on the test set; val_accuracy is the metric that
-exists for all six.
+exists for all five.
 
 The deployable model is the one nearest the top-left _given the product's
 latency budget_; chasing the absolute top isn't always justified. (This is a

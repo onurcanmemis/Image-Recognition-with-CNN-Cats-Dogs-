@@ -1,4 +1,4 @@
-"""Model 3 — MobileNetV2 with the convolutional base frozen.
+"""Model 2 — MobileNetV2 with the convolutional base frozen.
 
 Only the new classification head trains. Cheap, fast, strong baseline for
 transfer learning on small datasets.
@@ -20,12 +20,16 @@ def build(num_classes: int = 37) -> tf.keras.Model:
     base = MobileNetV2(weights="imagenet", include_top=False, input_shape=INPUT_SHAPE)
     base.trainable = False
 
-    x = layers.GlobalAveragePooling2D()(base.output)
+    inputs = tf.keras.Input(shape=INPUT_SHAPE)
+    # Call the base as a sub-model so it stays a single named layer in the outer
+    # Model — the fine-tune builder relies on get_layer("mobilenetv2_1.00_224").
+    x = base(inputs, training=False)
+    x = layers.GlobalAveragePooling2D()(x)
     x = layers.Dense(256, activation="relu")(x)
     x = layers.Dropout(0.3)(x)
     output = layers.Dense(num_classes, activation="softmax", dtype="float32")(x)
 
-    model = Model(base.input, output, name=NAME)
+    model = Model(inputs, output, name=NAME)
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=1e-3),
         loss="categorical_crossentropy",

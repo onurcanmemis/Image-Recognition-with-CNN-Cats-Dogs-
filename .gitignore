@@ -4,7 +4,13 @@ dataset_oxford_pets/
 # Training artefacts
 model_experiments/saved_models/
 model_experiments/results/
-model_experiments/plots/
+model_experiments/plots/*
+# Exception: the combined val-accuracy plot is embedded in the README,
+# so it must be tracked.
+!model_experiments/plots/val_accuracy_curves.png
+# Exception: the speed-vs-accuracy scatter is referenced from the README
+# and overwritten in place by every tournament run.
+!model_experiments/plots/speed_vs_accuracy.png
 
 # Winner artefacts produced by train_compare.py — not committed;
 # regenerate locally or copy from the HF Space.

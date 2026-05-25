@@ -1,4 +1,4 @@
-"""Model 2 — Deeper CNN.
+"""Model 1 — Deeper CNN.
 
 Three Conv/MaxPool/BatchNorm blocks → Dropout → Dense(256) → softmax(37).
 """

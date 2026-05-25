@@ -1,7 +1,7 @@
 [project]
 name = "pet-breed-classifier"
 version = "0.4.0"
-description = "Oxford-IIIT Pet breed classifier — 6-model tournament, Grad-CAM FastAPI app"
+description = "Oxford-IIIT Pet breed classifier — 5-model tournament, Grad-CAM FastAPI app"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # Web app
